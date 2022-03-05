@@ -1,0 +1,418 @@
+//package sudoku;
+import java.awt.Color;
+import java.awt.Font;
+import javax.swing.JTextField;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.event.ActionListener;
+import javax.swing.*;
+import java.util.Random;
+import java.util.Scanner;
+import SudokuGenerator.*;
+import javax.swing.event.*;
+import javax.swing.JFrame;  
+
+class Cell extends JTextField {
+public static final Color BG1 =  Color.lightGray;public static final Color BG2=  Color.white;
+public static final Color BG3 =  Color.lightGray;public static final Color BG4 =  Color.white;
+public static final Color BG5 =Color.lightGray;public static final Color BG6=  Color.white;
+public static final Color BG7 =  Color.lightGray;public static final Color BG8 =  Color.white;
+public static final Color BG9 =  Color.lightGray;
+
+   public static final Color BG_SHOWN = new Color(240, 240, 240); // RGB
+   public static final Color FG_SHOWN = Color.BLACK;
+   public static final Color FG_NOT_SHOWN = Color.GRAY;
+   public static final Color BG_NO_GUESS = Color.YELLOW;
+   public static final Color BG_CORRECT_GUESS =  Color.GREEN;  // RGB
+   public static final Color BG_WRONG_GUESS =  Color.RED;
+   public static final Font FONT_NUMBERS = new Font("Monospaced", Font.BOLD, 24);
+
+   int row, col;  
+   int number;   
+   CellStatus status; 
+  public Cell(int row, int col) {
+      super();   // JTextField
+      this.row = row;
+      this.col = col;
+      super.setHorizontalAlignment(JTextField.CENTER); 
+      super.setFont(FONT_NUMBERS);  
+   }
+   public void init(int number, boolean isShown,int ir,int jc) {
+      this.number = number;
+      status = isShown ? CellStatus.SHOWN : CellStatus.NO_GUESS;
+      paint();
+      paint2(ir,jc);
+   }
+   public void paint() {
+      if (status == CellStatus.SHOWN) {
+         // Inherited from JTextField: Set display properties
+         super.setText(number + "");
+         super.setEditable(false);
+         super.setBackground(BG_SHOWN);
+         super.setForeground(FG_SHOWN);
+      } else if (status == CellStatus.NO_GUESS) {
+         // Inherited from JTextField: Set display properties
+         super.setText(""); 
+         super.setEditable(true);
+         super.setBackground(BG_NO_GUESS);
+         super.setForeground(FG_NOT_SHOWN);
+      } else if (status == CellStatus.CORRECT_GUESS) {
+         super.setEditable(true);
+         super.setBackground(BG_CORRECT_GUESS);
+      } else if (status == CellStatus.WRONG_GUESS) {
+         super.setEditable(true);
+         super.setBackground(BG_WRONG_GUESS);
+      }
+   }
+  public void paint2(int ir,int jc){
+    if(ir>=0&&ir<=2){
+        if(jc>=0&&jc<=2){super.setBackground(BG1);}
+        if(jc>=3&&jc<=5){super.setBackground(BG2);}
+        if(jc>=6&&jc<=8){super.setBackground(BG3);} }
+    else if(ir>=3&&ir<=5){
+        if(jc>=0&&jc<=2){super.setBackground(BG4);}
+        if(jc>=3&&jc<=5){super.setBackground(BG5);}
+        if(jc>=6&&jc<=8){super.setBackground(BG6);} }
+    else if(ir>=6&&ir<=8){
+        if(jc>=0&&jc<=2){super.setBackground(BG7);}
+        if(jc>=3&&jc<=5){super.setBackground(BG8);}
+        if(jc>=6&&jc<=8){super.setBackground(BG9);} }   
+  }
+}
+
+enum CellStatus {
+   SHOWN,         // number shown, no need to guess
+   NO_GUESS,      
+   CORRECT_GUESS,
+   WRONG_GUESS , 
+   HINT   ,
+   PENCIL
+}
+
+class Puzzle {
+   int[][][] numbers = new int[GameBoard.GRID_SIZE][GameBoard.GRID_SIZE][GameBoard.GRID_SIZE];
+   boolean[][] isShown = new boolean[GameBoard.GRID_SIZE][GameBoard.GRID_SIZE];
+   public Puzzle() {
+      super();  // JPanel
+   }
+
+
+ public void newPuzzle(int numToGuess) {
+int K=0;
+String options=GameBoard.options;
+     //object of Sudoku class in Sudoku file
+          if(options.equals("1")){K=51;} 
+          else if(options.equals("2")){K=53;}  
+          else if(options.equals("3")){K=54;} 
+
+     SudokuGenerator.Sudoku obj11=new SudokuGenerator.Sudoku(9,K);
+     obj11.fillValues();obj11.removeKDigits();
+     for (int row = 0; row < 9; ++row) {
+         for (int col = 0; col < 9; ++col) {
+     //      System.out.print(SudokuGenerator.Sudoku.mat[row][col]+" ");
+        numbers[row][col][0]=SudokuGenerator.Sudoku.mat[row][col];
+              isShown[row][col] = SudokuGenerator.Sudoku.mat2[row][col];
+             
+          }
+      } 
+      }
+}
+
+class GameBoard extends JPanel {
+   // Name-constants for the game board properties
+   public static final int GRID_SIZE = 9;    
+   public static final int SUBGRID_SIZE = 3; 
+
+   // Name-constants for UI sizes
+   public static final int CELL_SIZE = 60;   // Cell width/height in pixels
+   public static final int BOARD_WIDTH  = CELL_SIZE * GRID_SIZE;
+   public static final int BOARD_HEIGHT = CELL_SIZE * GRID_SIZE; // Board width/height in pixels
+   public static Cell[][][] cells = new Cell[GRID_SIZE][GRID_SIZE][GRID_SIZE];
+   public static int wcount=0,hcount=0; 
+   public static String options="0";public static String onoff="0"; //***********************
+   public static final Font PENCIL_FONT = new Font("Monospaced", Font.ITALIC, 10);//******
+   public static final Font FASTPENCIL_FONT = new Font("Monospaced", Font.ITALIC, 10);//******
+   private Puzzle puzzle = new Puzzle();
+
+   public GameBoard() {
+      super.setLayout(new GridLayout(GRID_SIZE, GRID_SIZE));  // JPanel
+      // Allocate the 2D array of Cell, and added into JPanel.
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+            cells[row][col][0] = new Cell(row, col);
+           for(int i=0;i<9;i++){       
+            super.add(cells[row][col][0]);   // JPanel
+         }
+      }}
+  CellInputListener listener = new CellInputListener();
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+           cells[row][col][0].addActionListener(listener);
+         }
+      }
+
+      super.setPreferredSize(new Dimension(BOARD_WIDTH, BOARD_HEIGHT));
+   }
+
+public void init() {
+      puzzle.newPuzzle(2);
+      // Based on the puzzle, initialize all the cells.
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+            cells[row][col][0].init(puzzle.numbers[row][col][0], puzzle.isShown[row][col], row, col);
+         }
+      }}
+
+public void solve(){
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+           if(cells[row][col][0].getFont()==FASTPENCIL_FONT||cells[row][col][0].getFont()==PENCIL_FONT){cells[row][col][0].setFont(new Font("Monospaced", Font.BOLD, 24));}
+            cells[row][col][0].init(puzzle.numbers[row][col][0], true, row, col);
+         }}
+      if(isSolved()==true){
+         JOptionPane.showMessageDialog(null, "Solved for you!");}
+      
+} 
+
+public int hint() {int flag=0;
+      hcount++; //***********************
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+            if(cells[row][col][0].getFont()==FASTPENCIL_FONT||cells[row][col][0].getFont()==PENCIL_FONT){cells[row][col][0].setFont(new Font("Monospaced", Font.BOLD, 24));}
+            if (cells[row][col][0].status == CellStatus.NO_GUESS || cells[row][col][0].status == CellStatus.WRONG_GUESS) {
+               if(cells[row][col][0].status == CellStatus.NO_GUESS){flag=1;}
+               cells[row][col][0].init(puzzle.numbers[row][col][0],true, row, col);
+               System.out.println("Cell at position "+row+","+col+" filled.");
+               if(flag==1){flag=0;cells[row][col][0].status = CellStatus.HINT;}
+               return 0;
+            }
+         }}
+      if(isSolved()==true){
+         JOptionPane.showMessageDialog(null, "Congratulations!You Won!");}
+      return 0;}
+
+public void paint3(int ir,int jc){
+Color BG1 =  Color.lightGray;
+Color BG2=  Color.white;
+    if(ir>=0&&ir<=2){
+        if(jc>=0&&jc<=2){cells[ir][jc][0].setBackground(BG1);}
+        if(jc>=3&&jc<=5){cells[ir][jc][0].setBackground(BG2);}
+        if(jc>=6&&jc<=8){cells[ir][jc][0].setBackground(BG1);} }
+    else if(ir>=3&&ir<=5){
+        if(jc>=0&&jc<=2){cells[ir][jc][0].setBackground(BG2);}
+        if(jc>=3&&jc<=5){cells[ir][jc][0].setBackground(BG1);}
+        if(jc>=6&&jc<=8){cells[ir][jc][0].setBackground(BG2);} }
+    else if(ir>=6&&ir<=8){
+        if(jc>=0&&jc<=2){cells[ir][jc][0].setBackground(BG1);}
+        if(jc>=3&&jc<=5){cells[ir][jc][0].setBackground(BG2);}
+        if(jc>=6&&jc<=8){cells[ir][jc][0].setBackground(BG1);} }   
+  }
+
+public void reset() {  hcount=0;wcount=0;//************************
+         for (int row = 0; row < GRID_SIZE; ++row) {
+              for (int col = 0; col < GRID_SIZE; ++col) {
+                     if(cells[row][col][0].getFont()==FASTPENCIL_FONT||cells[row][col][0].getFont()==PENCIL_FONT){cells[row][col][0].setFont(new Font("Monospaced", Font.BOLD, 24));cells[row][col][0].setText("");}  //*********
+                      if (cells[row][col][0].status == CellStatus.CORRECT_GUESS || cells[row][col][0].status == CellStatus.WRONG_GUESS ||cells[row][col][0].status == CellStatus.HINT){//if hint has set status to shown then set status to hint so it can also be reset
+                      cells[row][col][0].setText("");}
+       //if cell ststus is set to hint reset to no guess ,otherwise it wont take input if new game selected
+                     if(cells[row][col][0].status ==CellStatus.HINT||cells[row][col][0].status ==CellStatus.PENCIL){
+                        cells[row][col][0].status = CellStatus.NO_GUESS;cells[row][col][0].setEditable(true);paint3(row,col);}
+                            }}
+      }
+
+public void level(){ //*********************************
+     options=JOptionPane.showInputDialog("Choose level:\n1.Easy\n2.Medium\n3.Hard"); 
+     if(options.equals("1")){JOptionPane.showMessageDialog(null,"Level:Easy.\nRules:3 Hints allowed.Can enter wrong number a max of 6 times.");}
+     else if(options.equals("2")){JOptionPane.showMessageDialog(null,"Level:Medium.\nRules:2 Hints allowed.Can enter wrong number a max of 5 times.");}
+     else if(options.equals("3")){JOptionPane.showMessageDialog(null,"Level:Hard.\nRules:2 Hints allowed.Can enter wrong number a max of 2 times.");}
+     else{JOptionPane.showMessageDialog(null,"Invalid option "+options+" selected.Enter 1/2/3.");System.exit(0);}
+     int option=Integer.parseInt(options);
+   }
+public boolean exceedwhcount(){   //***************************
+          if(options.equals("1")){if(hcount>=3){JOptionPane.showMessageDialog(null, "3 hints used up.");}
+                                  if(wcount>6){JOptionPane.showMessageDialog(null, "Exceeded wrong answer limit.");return true;}}
+          else if(options.equals("2")){if(hcount>=2){JOptionPane.showMessageDialog(null, "2 hints used up.");}
+                                  if(wcount>5){JOptionPane.showMessageDialog(null, "Exceeded wrong answer limit.");return true;}}
+          else if(options.equals("3")){if(hcount>=2 ){JOptionPane.showMessageDialog(null, "All hints used up.");}
+                                  if(wcount>2){JOptionPane.showMessageDialog(null, "Exceeded wrong answer limit.");return true;}}
+          return false;
+  }
+public boolean exceedwhcount2(){   //***************************
+          if(options.equals("1")){if(hcount>=3){}
+                                  if(wcount>6){return true;}}
+          else if(options.equals("2")){if(hcount>=2){}
+                                  if(wcount>5){return true;}}
+          else if(options.equals("3")){if(hcount>=2 ){}
+                                  if(wcount>2){return true;}}
+          return false;
+  }
+public boolean isSolved() {
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+            if (cells[row][col][0].status == CellStatus.NO_GUESS || cells[row][col][0].status == CellStatus.WRONG_GUESS) {
+               return false;
+            }
+         }
+      }
+      return true;
+   }
+//************************************************************
+public void pencil(){
+CellInputListener2 listener2 = new CellInputListener2();
+      for (int row = 0; row < GRID_SIZE; ++row) {
+         for (int col = 0; col < GRID_SIZE; ++col) {
+           cells[row][col][0].addActionListener(listener2); 
+         }
+      }
+onoff=JOptionPane.showInputDialog("Choose pencil:\n1.On\n2.Off\n"); 
+if(onoff.equals("1")){ 
+        JOptionPane.showMessageDialog(null, "Pencil on.Select cell to mark with pencil.");}
+else if(onoff.equals("2")){ JOptionPane.showMessageDialog(null, "Pencil off.");return;}
+else{JOptionPane.showMessageDialog(null, "Choose 1/2 only.");return;}
+
+}
+//****************************************************
+public static void checkandadd(int r,int c){  
+int[] array1=new int[9];
+String array2=new String("") ;int colnn=0;int colno=0;
+for(int i=0;i<=8;i++){array1[i]=0;}
+array2="";
+  for(int coln=0;coln<9;coln++){if(cells[r][coln][0].status==CellStatus.SHOWN||cells[r][coln][0].status==CellStatus.HINT||cells[r][coln][0].status==CellStatus.CORRECT_GUESS){
+                              String s=cells[r][coln][0].getText();
+                              int a=Integer.parseInt(s);array1[a-1]=a;}}
+  for(int rown=0;rown<9;rown++){if(cells[rown][c][0].status==CellStatus.SHOWN||cells[rown][c][0].status==CellStatus.HINT||cells[rown][c][0].status==CellStatus.CORRECT_GUESS){
+                              String s=cells[rown][c][0].getText();
+                              int a=Integer.parseInt(s);array1[a-1]=a;}}
+ if(c>=0&&c<=2){colno=0;} else if(c>=3&&c<=5){colno=3;} else if(c>=6&&c<=8){colno=6;} //beginning of respective subgrid
+ colnn=colno;
+ if(r>=0&&r<=2){
+  for(int row=0;row<=2;row++){for(int coln=0;coln<3;coln++){
+                              if(cells[row][colnn][0].status==CellStatus.SHOWN||cells[row][colnn][0].status==CellStatus.HINT||cells[row][colnn][0].status==CellStatus.CORRECT_GUESS){
+                              String s=cells[row][colnn][0].getText();
+                              int a=Integer.parseInt(s);array1[a-1]=a;}
+                              colnn++;}
+                              colnn=colno;}}
+ colnn=colno;
+ if(r>=3&&r<=5){
+  for(int row=3;row<=5;row++){for(int coln=0;coln<3;coln++){
+                              if(cells[row][colnn][0].status==CellStatus.SHOWN||cells[row][colnn][0].status==CellStatus.HINT||cells[row][colnn][0].status==CellStatus.CORRECT_GUESS){
+                              String s=cells[row][colnn][0].getText();
+                              int a=Integer.parseInt(s);array1[a-1]=a;}
+                              colnn++;}
+                              colnn=colno;}}
+ colnn=colno; 
+ if(r>=6&&r<=8){
+  for(int row=6;row<=8;row++){
+                        for(int coln=0;coln<3;coln++){
+                              if(cells[row][colnn][0].status==CellStatus.SHOWN||cells[row][colnn][0].status==CellStatus.HINT||cells[row][colnn][0].status==CellStatus.CORRECT_GUESS){
+                              String s=cells[row][colnn][0].getText();
+                              int a=Integer.parseInt(s);array1[a-1]=a;}
+                               colnn++;}
+                              colnn=colno;}}
+for(int i=0;i<=8;i++){if(array1[i]>=1&&array1[i]<=9){}else{array1[i]=0;}}
+for(int i=0;i<=8;i++){if(array1[i]==0){array2+=(i+1);}}
+cells[r][c][0].setText(array2);
+  
+
+ }
+
+public void fastpencil(){
+CellInputListener2 listener3 = new CellInputListener2();
+ for (int row = 0; row < GRID_SIZE; ++row) {
+   for (int col = 0; col < GRID_SIZE; ++col) {
+        if (cells[row][col][0].status == CellStatus.NO_GUESS || cells[row][col][0].status == CellStatus.WRONG_GUESS) {
+                cells[row][col][0].setFont(FASTPENCIL_FONT);checkandadd(row,col);} }}
+
+ //**********************
+
+}
+//****************************************************
+public boolean checkhcount(){  if(options.equals("1")){if(hcount<3){return true;}}
+                               else if(options.equals("2")){if(hcount<2){return true;}}
+                               else if(options.equals("3")){if(hcount<2){return true;}}return false;}
+
+ private class CellInputListener2 implements ActionListener {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+         Cell sourceCell = (Cell)e.getSource();     
+         System.out.println("You entered in pencil " + sourceCell.getText());
+        //   String g=sourceCell.getText();
+        //  int in=Integer.parseInt(g);
+       //   numbers[row][col][1]=in;        
+    if(onoff.equals("1")){sourceCell.setFont(PENCIL_FONT);sourceCell.setBackground(Color.YELLOW);
+                   sourceCell.setText(sourceCell.getText() +"/");
+                   if(sourceCell.status == CellStatus.NO_GUESS){sourceCell.status = CellStatus.PENCIL;}
+}
+    else if(onoff.equals("2")){sourceCell.setFont(new Font("Monospaced", Font.BOLD, 24));}
+}}
+
+    private class CellInputListener implements ActionListener {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+          if(onoff.equals("1")){return;}//*********
+         Cell sourceCell = (Cell)e.getSource();
+          if(sourceCell.getFont()==FASTPENCIL_FONT){sourceCell.setFont(new Font("Monospaced", Font.BOLD, 24));}//*********
+         System.out.println("You entered " + sourceCell.getText());
+           String g=sourceCell.getText();
+          int in=Integer.parseInt(g);
+          if(sourceCell.number!=in){wcount++;sourceCell.status=CellStatus.WRONG_GUESS;sourceCell.paint();}//**********************************
+          else if(sourceCell.number==in){sourceCell.status=CellStatus.CORRECT_GUESS;sourceCell.paint();}
+          else if((Integer)sourceCell.number==null){sourceCell.status=CellStatus.NO_GUESS;
+ sourceCell.init(sourceCell.number,false,-1,-1);}
+      //    else{sourceCell.status=CellStatus.SHOWN;sourceCell.init(sourceCell.number,true,-1,-1);}
+        if(isSolved()==true){
+         JOptionPane.showMessageDialog(null, "Congratulations!You Won!");}
+       if(exceedwhcount2()==true){   JOptionPane.showMessageDialog(null, "Failed level.Better luck next time:)");System.exit(0);}
+      }
+   }
+}
+
+
+public class SudokuMain5 extends JFrame {
+ JButton b1=new JButton("Solve");JButton b2=new JButton("Hint");
+ JButton b3=new JButton("Reset");JButton b4=new JButton("New game");
+ JButton b5=new JButton("Pencil");JButton b6=new JButton("Fast pencil");
+ GameBoard board = new GameBoard();
+   public SudokuMain5() { board.level();
+       ButInputListener listener = new ButInputListener();
+       b1.addActionListener(listener); b2.addActionListener(listener);
+       b3.addActionListener(listener); b4.addActionListener(listener); 
+       b5.addActionListener(listener); b6.addActionListener(listener);
+      add(board);
+      add(b1);add(b2);add(b3);add(b4);add(b5);add(b6);
+      setLayout(new FlowLayout(FlowLayout.LEFT, 20, 25));    
+      board.init();
+      pack();     // Pack the UI components, instead of setSize()
+      setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  // Handle window closing
+      setTitle("Sudoku");
+      setVisible(true);
+   }
+  public static void main(String[] args) {
+     SudokuMain5 obj4=new SudokuMain5();
+   }
+  private class ButInputListener implements ActionListener {
+      @Override
+   public void actionPerformed(ActionEvent e) { int flag=0;
+           if(e.getSource()==b4){
+                 System.out.println("New game");
+                 JOptionPane.showMessageDialog(null, "New game");
+                 board.level();board.init(); flag=0;               
+                }
+           else if(e.getSource()==b1){board.solve();}
+           else if(e.getSource()==b2){board.exceedwhcount();if(board.checkhcount()){board.hint();if(flag==1){board.fastpencil();}}
+                                                    }  //whcount called only when inserting number and not pressing a button//only if not exceede call hint
+           else if(e.getSource()==b3){ 
+                 System.out.println("Reset");
+                 JOptionPane.showMessageDialog(null, "Reset");
+                 board.reset();flag=0;}
+          else if (e.getSource()==b5){ 
+                 System.out.println("Pencil");
+                 JOptionPane.showMessageDialog(null, "Pencil selected");
+                 board.pencil();  }
+          else if (e.getSource()==b6){ 
+                 System.out.println("Fast pencil");
+                 JOptionPane.showMessageDialog(null, "Fast pencil selected");
+                 board.fastpencil(); flag=1; }
+                }
+}
+}

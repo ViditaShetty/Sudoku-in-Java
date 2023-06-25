@@ -5,3 +5,4 @@ Buttons for :
 • Pencil ( Entering more than 1 number in a box ) 
 • Fast-Pencil( To autofill possible numbers ) 
 
+![Uploading WhatsApp Image 2023-06-25 at 20.14.49.jpeg…]()
